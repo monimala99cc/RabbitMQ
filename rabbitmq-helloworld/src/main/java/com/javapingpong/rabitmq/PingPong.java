@@ -10,7 +10,7 @@ public class PingPong {
     // Messages
     static String ping = "PING";
     static String pong = "PONG";
-    static String ask = "WANT2PING";
+    static String ask = "PING";
     static String ack = "ACK";
 
     // Booleans
@@ -34,20 +34,17 @@ public class PingPong {
 
         send(ask, QUEUE_NAME_OUT); // Start the Ping-Pong process
 
-        receive(); 
+        receive(); // Start listening on both queues
     }
 
-    
+   
     public static void send(String msg, String queueName) {
         try {
             Channel channel = queueName.equals(QUEUE_NAME_IN) ? channelPing : channelPong;
             channel.basicPublish("", queueName, null, msg.getBytes());
             System.out.println("Sent: '" + msg + "' to " + queueName);
 
-            if (msg.equals(ask)) {
-                initialized = true;
-            }
-            //Thread.sleep(100);
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -68,20 +65,22 @@ public class PingPong {
         DeliverCallback deliverCallbackPong = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
             System.out.println("[x] Received from pong: '" + message + "'");
-            System.out.println("calling handleReceivedMessage");
-
             handleReceivedMessage(message, QUEUE_NAME_IN);
         };
         channelPong.basicConsume(QUEUE_NAME_OUT, true, deliverCallbackPong, consumerTag -> {});
     }
 
-    
     private static void handleReceivedMessage(String message, String responseQueue) {
-        System.out.println("inside handleReceivedMessage");
-
-        switch (message) {
+    	
+    	System.out.println("calling handleReceivedMessage:  "+message);
+    	try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}        
+    	switch (message) {
             case "ACK":
-                System.out.println("Received ACK, starting Ping-Pong exchange...");
                 send(ping, responseQueue);
                 break;
             case "PING":
@@ -92,12 +91,9 @@ public class PingPong {
                 break;
             case "WANT2PING":
                 if (!initialized) {
-                    System.out.println("Received WANT2PING, responding with ACK...");
                     send(ack, responseQueue);
                     initialized = true;
-                } else if (ID == 2) { // If this instance has a higher ID
-                    send(ack, responseQueue);
-                }
+                } 
                 break;
             default:
                 System.out.println("Received an unrecognized message: " + message);
